@@ -1,0 +1,108 @@
+package model;
+
+import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import testHelper.NASACapcomStub;
+import testHelper.QuadPlateauStub;
+
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class RoverTest {
+    private NASACapcomStub capcom;
+    private SurfaceRover testRover;
+    private QuadPlateauStub plateau;
+
+    @BeforeEach
+    public void setup() {
+        capcom = new NASACapcomStub();
+        plateau = new QuadPlateauStub();
+        testRover = new SurfaceRover(capcom, "TestRover", plateau,2, 2, HeadingEnum.NORTH);
+    }
+
+    @Test
+    public void shouldReturnCorrectRoverId() {
+        String testRoverId = "TestRover";
+        SurfaceRover firstRover = new SurfaceRover(capcom, testRoverId, plateau,2, 2, HeadingEnum.NORTH);
+        assertEquals(testRoverId, firstRover.getId());
+    }
+
+    @Test
+    public void shouldReturnCorrectPlateau() {
+        String testRoverId = "TestRover";
+        SurfaceRover firstRover = new SurfaceRover(capcom, testRoverId, plateau,2, 2, HeadingEnum.NORTH);
+        assertEquals(plateau, firstRover.getPlateau());
+    }
+
+    @Test
+    public void shouldBeAbleToGetLocation() {
+        assertEquals("2 2 N", testRover.getLocation());
+    }
+
+    @Test
+    public void shouldBeAbleToSpinLeft() {
+        testRover.spin(capcom, DirectionEnum.LEFT);
+        assertEquals("2 2 W", testRover.getLocation());
+    }
+
+    @Test
+    public void shouldBeAbleToSpinRight() {
+        testRover.spin(capcom, DirectionEnum.RIGHT);
+        assertEquals("2 2 E", testRover.getLocation());
+    }
+
+
+    @ParameterizedTest
+    @MethodSource("validMoveTestData")
+    public void shouldBeAbleToMoveToValidAndFreeGridReference(HeadingEnum heading, String expectedResult) {
+        testRover = new SurfaceRover(capcom, "TestRover", plateau,2, 2, heading);
+        testRover.move(capcom);
+        assertEquals(expectedResult, testRover.getLocation());
+    }
+
+    public static Stream<Arguments> validMoveTestData() {
+        return Stream.of(
+                Arguments.of(HeadingEnum.NORTH, "2 3 N"),
+                Arguments.of(HeadingEnum.EAST, "3 2 E"),
+                Arguments.of(HeadingEnum.SOUTH, "2 1 S"),
+                Arguments.of(HeadingEnum.WEST, "1 2 W"));
+    }
+
+    @Test
+    public void shouldNotMoveToInvalidSpace() {
+        testRover = new SurfaceRover(capcom, "TestRover", plateau,5, 5, HeadingEnum.NORTH);
+        assertThrows(IllegalStateException.class, () -> testRover.move(capcom));
+        assertEquals("5 5 N", testRover.getLocation());
+    }
+
+    @Test
+    public void shouldNotBeAbleToStoreInvalidPosition(){
+        assertThrows(IllegalStateException.class, () -> new SurfaceRover(capcom, "TestRover", plateau,-1, 0, HeadingEnum.SOUTH));
+    }
+
+    @Test
+    public void shouldHandlePositionStoreFailure(){
+        testRover = new SurfaceRover(capcom, "ROVER-FAIL", plateau,1, 4, HeadingEnum.WEST);
+        assertThrows(IllegalStateException.class, () -> testRover.move(capcom));
+    }
+
+
+    @Test
+    public void shouldNotAcceptMoveCommandFromRogueCapcom(){
+        NASACapcomStub rogueCapcom = new NASACapcomStub();
+        testRover = new SurfaceRover(capcom, "ROVER-1", plateau,2, 2, HeadingEnum.WEST);
+        assertThrows(IllegalStateException.class, () -> testRover.move(rogueCapcom));
+    }
+
+    @Test
+    public void shouldNotAcceptSpinCommandFromRogueCapcom(){
+        NASACapcomStub rogueCapcom = new NASACapcomStub();
+        testRover = new SurfaceRover(capcom, "ROVER-1", plateau,2, 2, HeadingEnum.WEST);
+        assertThrows(IllegalStateException.class, () -> testRover.spin(rogueCapcom, DirectionEnum.LEFT));
+    }
+
+}
